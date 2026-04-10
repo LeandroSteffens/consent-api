@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -55,6 +57,19 @@ public class GlobalExceptionHandler {
         String message = "O corpo da requisição está malformado ou contém valores inválidos (ex: status inexistente).";
         log.warn("Mensagem HTTP ilegível (400 Bad Request): {}", ex.getMessage());
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message, null);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Credenciais inválidas (401 Unauthorized): {}", ex.getMessage());
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Credenciais inválidas. Verifique username e senha.", null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Acesso negado (403 Forbidden): {}", ex.getMessage());
+        return buildErrorResponse(HttpStatus.FORBIDDEN,
+                "Acesso negado. Você não possui permissão para realizar esta ação.", null);
     }
 
     @ExceptionHandler(Exception.class)

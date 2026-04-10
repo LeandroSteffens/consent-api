@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -66,7 +67,9 @@ public class ConsentController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Atualizar informações do consentimento")
+    @Operation(summary = "Atualizar informações do consentimento",
+            description = "Apenas usuários com role ADMIN podem atualizar consentimentos")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ConsentResponse> updateConsent(
             @PathVariable UUID id,
