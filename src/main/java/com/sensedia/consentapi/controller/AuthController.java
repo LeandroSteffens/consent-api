@@ -2,11 +2,13 @@ package com.sensedia.consentapi.controller;
 
 import com.sensedia.consentapi.dto.AuthResponse;
 import com.sensedia.consentapi.dto.LoginRequest;
+import com.sensedia.consentapi.dto.LogoutRequest;
 import com.sensedia.consentapi.dto.RefreshRequest;
 import com.sensedia.consentapi.dto.RegisterRequest;
 import com.sensedia.consentapi.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Tag(name = "Autenticação", description = "Endpoints para registro, login e renovação de tokens JWT")
+@Tag(name = "Autenticação", description = "Endpoints para registro, login, logout e renovação de tokens JWT")
 public class AuthController {
 
     private final AuthService authService;
@@ -38,6 +40,23 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Logout",
+            description = "Invalida o access token atual e opcionalmente o refresh token")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            HttpServletRequest httpRequest,
+            @RequestBody(required = false) LogoutRequest request) {
+
+        String authHeader = httpRequest.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String accessToken = authHeader.substring(7);
+        authService.logout(accessToken, request);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Renovar token",

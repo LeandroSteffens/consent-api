@@ -4,10 +4,12 @@ import com.sensedia.consentapi.domain.User;
 import com.sensedia.consentapi.domain.UserRole;
 import com.sensedia.consentapi.dto.AuthResponse;
 import com.sensedia.consentapi.dto.LoginRequest;
+import com.sensedia.consentapi.dto.LogoutRequest;
 import com.sensedia.consentapi.dto.RefreshRequest;
 import com.sensedia.consentapi.dto.RegisterRequest;
 import com.sensedia.consentapi.repository.UserRepository;
 import com.sensedia.consentapi.security.JwtService;
+import com.sensedia.consentapi.security.TokenBlacklistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,9 @@ class AuthServiceTest {
 
     @Mock
     private UserDetailsService userDetailsService;
+
+    @Mock
+    private TokenBlacklistService tokenBlacklistService;
 
     @InjectMocks
     private AuthService authService;
@@ -190,6 +195,7 @@ class AuthServiceTest {
                     .roles(Set.of(UserRole.ROLE_USER))
                     .build();
 
+            when(tokenBlacklistService.isBlacklisted("valid-refresh-token")).thenReturn(false);
             when(jwtService.extractUsername("valid-refresh-token")).thenReturn("luis");
             when(userDetailsService.loadUserByUsername("luis")).thenReturn(user);
             when(jwtService.isTokenValid("valid-refresh-token", user)).thenReturn(true);
@@ -216,12 +222,72 @@ class AuthServiceTest {
                     .roles(Set.of(UserRole.ROLE_USER))
                     .build();
 
+            when(tokenBlacklistService.isBlacklisted("invalid-refresh-token")).thenReturn(false);
             when(jwtService.extractUsername("invalid-refresh-token")).thenReturn("luis");
             when(userDetailsService.loadUserByUsername("luis")).thenReturn(user);
             when(jwtService.isTokenValid("invalid-refresh-token", user)).thenReturn(false);
 
             assertThrows(IllegalArgumentException.class,
                     () -> authService.refresh(request));
+        }
+
+        @Test
+        @DisplayName("Deve lançar exceção quando refresh token estiver na blacklist")
+        void shouldThrowWhenRefreshTokenIsBlacklisted() {
+            RefreshRequest request = RefreshRequest.builder()
+                    .refreshToken("blacklisted-refresh-token")
+                    .build();
+
+            when(tokenBlacklistService.isBlacklisted("blacklisted-refresh-token")).thenReturn(true);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> authService.refresh(request));
+        }
+    }
+
+    @Nested
+    @DisplayName("Logout")
+    class LogoutTests {
+
+        @Test
+        @DisplayName("Deve adicionar access token à blacklist no logout")
+        void shouldBlacklistAccessTokenOnLogout() {
+            String accessToken = "access-token";
+            when(jwtService.extractUsername(accessToken)).thenReturn("luis");
+
+            authService.logout(accessToken, null);
+
+            verify(tokenBlacklistService).blacklist(accessToken);
+        }
+
+        @Test
+        @DisplayName("Deve adicionar access e refresh tokens à blacklist quando refresh é fornecido")
+        void shouldBlacklistBothTokensOnLogout() {
+            String accessToken = "access-token";
+            LogoutRequest request = LogoutRequest.builder()
+                    .refreshToken("refresh-token")
+                    .build();
+
+            when(jwtService.extractUsername(accessToken)).thenReturn("luis");
+
+            authService.logout(accessToken, request);
+
+            verify(tokenBlacklistService).blacklist(accessToken);
+            verify(tokenBlacklistService).blacklist("refresh-token");
+        }
+
+        @Test
+        @DisplayName("Não deve tentar invalidar refresh token quando não fornecido")
+        void shouldNotBlacklistRefreshWhenNotProvided() {
+            String accessToken = "access-token";
+            LogoutRequest request = LogoutRequest.builder().build();
+
+            when(jwtService.extractUsername(accessToken)).thenReturn("luis");
+
+            authService.logout(accessToken, request);
+
+            verify(tokenBlacklistService, times(1)).blacklist(accessToken);
+            verifyNoMoreInteractions(tokenBlacklistService);
         }
     }
 }

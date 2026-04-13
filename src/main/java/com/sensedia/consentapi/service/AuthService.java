@@ -4,10 +4,12 @@ import com.sensedia.consentapi.domain.User;
 import com.sensedia.consentapi.domain.UserRole;
 import com.sensedia.consentapi.dto.AuthResponse;
 import com.sensedia.consentapi.dto.LoginRequest;
+import com.sensedia.consentapi.dto.LogoutRequest;
 import com.sensedia.consentapi.dto.RefreshRequest;
 import com.sensedia.consentapi.dto.RegisterRequest;
 import com.sensedia.consentapi.repository.UserRepository;
 import com.sensedia.consentapi.security.JwtService;
+import com.sensedia.consentapi.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,6 +32,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -85,6 +88,10 @@ public class AuthService {
     public AuthResponse refresh(RefreshRequest request) {
         String refreshToken = request.getRefreshToken();
 
+        if (tokenBlacklistService.isBlacklisted(refreshToken)) {
+            throw new IllegalArgumentException("Refresh token foi revogado.");
+        }
+
         String username = jwtService.extractUsername(refreshToken);
         UserDetails user = userDetailsService.loadUserByUsername(username);
 
@@ -102,5 +109,16 @@ public class AuthService {
                 .expiresIn(jwtService.getAccessTokenExpiration())
                 .tokenType("Bearer")
                 .build();
+    }
+
+    public void logout(String accessToken, LogoutRequest request) {
+        tokenBlacklistService.blacklist(accessToken);
+
+        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
+            tokenBlacklistService.blacklist(request.getRefreshToken());
+        }
+
+        String username = jwtService.extractUsername(accessToken);
+        log.info("Logout realizado para o usuário: {}", username);
     }
 }
