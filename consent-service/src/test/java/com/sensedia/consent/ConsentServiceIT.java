@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @Testcontainers
-class ConsentServiceApplicationTests {
+class ConsentServiceIT {
 
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:7.0");

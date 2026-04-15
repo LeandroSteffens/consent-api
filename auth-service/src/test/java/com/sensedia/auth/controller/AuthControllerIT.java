@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class AuthControllerIntegrationTest {
+class AuthControllerIT {
 
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:7.0");
