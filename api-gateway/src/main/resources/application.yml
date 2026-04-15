@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # ── Auth Service ──
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+
+        # ── Consent Service ──
+        - id: consent-service
+          uri: lb://consent-service
+          predicates:
+            - Path=/consents/**
+
+        # ── Auth Swagger ──
+        - id: auth-service-swagger
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth-service/v3/api-docs/**
+          filters:
+            - StripPrefix=1
+
+        # ── Consent Swagger ──
+        - id: consent-service-swagger
+          uri: lb://consent-service
+          predicates:
+            - Path=/consent-service/v3/api-docs/**
+          filters:
+            - StripPrefix=1
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
